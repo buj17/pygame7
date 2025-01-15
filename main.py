@@ -119,7 +119,12 @@ class Player(pygame.sprite.Sprite):
 
 class MainWindow:
     def __init__(self):
-        self.level = Level(load_level('data/map.txt'))
+        level = 'data/' + input('Choose the level (level1.txt, level2.txt, level3.txt, map.txt): ')
+        try:
+            self.level = Level(load_level(level))
+        except FileNotFoundError:
+            print('Level not found')
+            self.terminate()
 
     def show_intro(self):
         image = pygame.transform.scale(load_image('data/fon.jpg'), (width, height))
