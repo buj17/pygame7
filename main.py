@@ -114,7 +114,9 @@ class Player(pygame.sprite.Sprite):
                         pygame.K_LEFT: 'left',
                         pygame.K_RIGHT: 'right'}
             if event.type == pygame.KEYDOWN:
-                self.move_player(way_dict[event.key])
+                way = way_dict.get(event.key)
+                if way:
+                    self.move_player(way)
 
 
 class MainWindow:
