@@ -81,6 +81,7 @@ class Tile(pygame.sprite.Sprite):
             super().__init__(SpriteGroups.main_group, SpriteGroups.tiles_group, SpriteGroups.grass_group)
         self.image = tile_images[tile_type]
         self.rect = self.image.get_rect().move(tile_width * pos_x, tile_height * pos_y)
+        self.x, self.y = pos_x * tile_width, pos_y * tile_height
 
 
 class Player(pygame.sprite.Sprite):
@@ -90,6 +91,8 @@ class Player(pygame.sprite.Sprite):
         self.rect = self.image.get_rect().move(tile_width * col + 15, tile_height * row + 5)
         self.row = row
         self.col = col
+        self.x = tile_width * col + 15
+        self.y = tile_height * row + 5
         self.level = level
 
     def move_player(self, way: str):
@@ -103,6 +106,8 @@ class Player(pygame.sprite.Sprite):
             self.update_rect()
 
     def update_rect(self):
+        self.x = tile_width * self.col + 15
+        self.y = tile_height * self.row + 5
         self.rect.x = self.col * tile_width + 15
         self.rect.y = self.row * tile_height + 5
 
@@ -114,12 +119,28 @@ class Player(pygame.sprite.Sprite):
                         pygame.K_LEFT: 'left',
                         pygame.K_RIGHT: 'right'}
             if event.type == pygame.KEYDOWN:
-                self.move_player(way_dict[event.key])
+                way = way_dict.get(event.key)
+                if way:
+                    self.move_player(way)
+
+
+class Camera:
+    def __init__(self):
+        self.dx = self.dy = 0
+
+    def apply(self, sprite):
+        sprite.rect.x = sprite.x + self.dx
+        sprite.rect.y = sprite.y + self.dy
+
+    def update(self, target):
+        self.dx = -(target.col * tile_width + target.rect.w // 2) + width // 2
+        self.dy = -(target.row * tile_height + target.rect.h // 2) + height // 2
 
 
 class MainWindow:
     def __init__(self):
         self.level = Level(load_level('data/map.txt'))
+        self.camera = Camera()
 
     def show_intro(self):
         image = pygame.transform.scale(load_image('data/fon.jpg'), (width, height))
@@ -135,6 +156,8 @@ class MainWindow:
     def run(self):
         self.show_intro()
 
+        player = SpriteGroups.player_group.sprites()[0]
+
         clock = pygame.time.Clock()
         running = True
 
@@ -145,6 +168,11 @@ class MainWindow:
                     self.terminate()
                 SpriteGroups.main_group.update(event)
             SpriteGroups.main_group.update()
+
+            self.camera.update(player)
+            for sprite in SpriteGroups.main_group:
+                self.camera.apply(sprite)
+
             SpriteGroups.main_group.draw(screen)
             SpriteGroups.player_group.draw(screen)
             pygame.display.flip()
