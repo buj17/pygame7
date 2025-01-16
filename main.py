@@ -6,6 +6,7 @@ import pygame
 pygame.init()
 fps = 30
 size = width, height = 550, 550
+drawing_distance = 3
 screen = pygame.display.set_mode(size)
 
 
@@ -52,6 +53,45 @@ class SpriteGroups:
     player_group = pygame.sprite.Group()
 
 
+class Field:
+    def __init__(self, field: list[str]):
+        self.field = []
+
+        for row, line in enumerate(field):
+            self.field.append([])
+            for col, element in enumerate(line):
+                self.field[-1].append(element)
+                if element == '@':
+                    self.player_row, self.player_col = row, col
+
+        self.row_count = len(self.field)
+        self.col_count = len(self.field[0])
+
+    def get_cell(self, row: int, col: int):
+        return self.field[row % self.row_count][col % self.col_count]
+
+    def get_drawing_field(self, distance: int):
+        start_row, stop_row = self.player_row - distance, self.player_row + distance
+        start_col, stop_col = self.player_col - distance, self.player_col + distance
+
+        drawing_field = []
+        for row in range(start_row, stop_row):
+            drawing_field.append([])
+            for col in range(start_col, stop_col):
+                drawing_field[-1].append(self.get_cell(row, col))
+
+    def move_player(self, way: str):
+        way_dict = {'up': (self.player_row - 1, self.player_col),
+                    'down': (self.player_row + 1, self.player_col),
+                    'left': (self.player_row, self.player_col - 1),
+                    'right': (self.player_row, self.player_col + 1)}
+        self.player_row, self.player_col = way_dict[way]
+        self.player_row %= self.row_count
+        self.player_col %= self.col_count
+
+
+
+
 class Level:
     def __init__(self, level_structure: list[str]):
         self.field = []
@@ -74,17 +114,14 @@ class Level:
 
 
 class Tile(pygame.sprite.Sprite):
-    def __init__(self, tile_type: str, pos_x: int, pos_y: int):
-        if tile_type == 'wall':
-            super().__init__(SpriteGroups.main_group, SpriteGroups.tiles_group, SpriteGroups.boxes_group)
-        if tile_type == 'empty':
-            super().__init__(SpriteGroups.main_group, SpriteGroups.tiles_group, SpriteGroups.grass_group)
+    def __init__(self, tile_type: str, row: int, col: int):
+        super().__init__(SpriteGroups.main_group, SpriteGroups.tiles_group)
         self.image = tile_images[tile_type]
-        self.rect = self.image.get_rect().move(tile_width * pos_x, tile_height * pos_y)
+        self.rect = self.image.get_rect().move(tile_width * col, tile_height * row)
 
 
 class Player(pygame.sprite.Sprite):
-    def __init__(self, col: int, row: int, level: Level):
+    def __init__(self, row: int, col: int, level: Level):
         super().__init__(SpriteGroups.main_group, SpriteGroups.player_group)
         self.image = player_image
         self.rect = self.image.get_rect().move(tile_width * col + 15, tile_height * row + 5)
