@@ -6,7 +6,7 @@ import pygame
 pygame.init()
 fps = 30
 size = width, height = 550, 550
-drawing_distance = 3
+drawing_distance = 5
 screen = pygame.display.set_mode(size)
 
 
@@ -55,7 +55,7 @@ class SpriteGroups:
 
 class Field:
     def __init__(self, field: list[str]):
-        self.field = []
+        self.field: list[list[str]] = []
 
         for row, line in enumerate(field):
             self.field.append([])
@@ -75,42 +75,44 @@ class Field:
         start_col, stop_col = self.player_col - distance, self.player_col + distance
 
         drawing_field = []
-        for row in range(start_row, stop_row):
+        for row in range(start_row, stop_row + 1):
             drawing_field.append([])
-            for col in range(start_col, stop_col):
+            for col in range(start_col, stop_col + 1):
                 drawing_field[-1].append(self.get_cell(row, col))
+
+        return drawing_field
 
     def move_player(self, way: str):
         way_dict = {'up': (self.player_row - 1, self.player_col),
                     'down': (self.player_row + 1, self.player_col),
                     'left': (self.player_row, self.player_col - 1),
                     'right': (self.player_row, self.player_col + 1)}
+        new_row, new_col = way_dict.get(way)
+        if new_row is new_col is None:
+            return
+        if self.field[new_row % self.row_count][new_col % self.col_count] == '#':
+            return
+
+        self.field[self.player_row][self.player_col] = '.'
         self.player_row, self.player_col = way_dict[way]
         self.player_row %= self.row_count
         self.player_col %= self.col_count
+        self.field[self.player_row][self.player_col] = '@'
 
+    def render(self):
+        for sprite in SpriteGroups.main_group.sprites():
+            sprite.kill()
 
-
-
-class Level:
-    def __init__(self, level_structure: list[str]):
-        self.field = []
-        for row in range(len(level_structure)):
-            self.field.append([])
-            for col in range(len(level_structure[row])):
-                if level_structure[row][col] == '.':
-                    Tile('empty', col, row)
-                    self.field[-1].append('.')
-                elif level_structure[row][col] == '#':
-                    Tile('wall', col, row)
-                    self.field[-1].append('#')
-                elif level_structure[row][col] == '@':
-                    Tile('empty', col, row)
-                    Player(col, row, self)
-                    self.field[-1].append('.')
-
-    def get_cell(self, row: int, col: int):
-        return self.field[row][col]
+        drawing_field = self.get_drawing_field(drawing_distance)
+        for row, line in enumerate(drawing_field):
+            for col, element in enumerate(line):
+                if element == '.':
+                    Tile('empty', row, col)
+                elif element == '#':
+                    Tile('wall', row, col)
+                elif element == '@':
+                    Tile('empty', row, col)
+                    Player(row, col, self)
 
 
 class Tile(pygame.sprite.Sprite):
@@ -121,23 +123,16 @@ class Tile(pygame.sprite.Sprite):
 
 
 class Player(pygame.sprite.Sprite):
-    def __init__(self, row: int, col: int, level: Level):
+    def __init__(self, row: int, col: int, field: Field):
         super().__init__(SpriteGroups.main_group, SpriteGroups.player_group)
         self.image = player_image
         self.rect = self.image.get_rect().move(tile_width * col + 15, tile_height * row + 5)
         self.row = row
         self.col = col
-        self.level = level
+        self.field = field
 
     def move_player(self, way: str):
-        cords_dict = {'down': (self.row + 1, self.col),
-                      'up': (self.row - 1, self.col),
-                      'left': (self.row, self.col - 1),
-                      'right': (self.row, self.col + 1)}
-        new_row, new_col = cords_dict[way]
-        if self.level.get_cell(new_row, new_col) == '.':
-            self.row, self.col = new_row, new_col
-            self.update_rect()
+        self.field.move_player(way)
 
     def update_rect(self):
         self.rect.x = self.col * tile_width + 15
@@ -151,12 +146,14 @@ class Player(pygame.sprite.Sprite):
                         pygame.K_LEFT: 'left',
                         pygame.K_RIGHT: 'right'}
             if event.type == pygame.KEYDOWN:
-                self.move_player(way_dict[event.key])
+                way = way_dict.get(event.key)
+                if way:
+                    self.move_player(way)
 
 
 class MainWindow:
     def __init__(self):
-        self.level = Level(load_level('data/map.txt'))
+        self.field = Field(load_level('data/map.txt'))
 
     def show_intro(self):
         image = pygame.transform.scale(load_image('data/fon.jpg'), (width, height))
@@ -181,6 +178,8 @@ class MainWindow:
                 if event.type == pygame.QUIT:
                     self.terminate()
                 SpriteGroups.main_group.update(event)
+
+            self.field.render()
             SpriteGroups.main_group.update()
             SpriteGroups.main_group.draw(screen)
             SpriteGroups.player_group.draw(screen)
